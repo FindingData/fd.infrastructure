@@ -29,12 +29,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\fd.infrastructure.entity\fd.infrastructure.entity.csproj" />
+    <Folder Include="BaseProvider\Interface\" />
+    <Folder Include="Middleware\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="BaseProvider\Interface\" />
-    <Folder Include="Middleware\" />
+    <ProjectReference Include="..\fd.infrastructure.entity\fd.infrastructure.entity.csproj" />
   </ItemGroup>
 
 </Project>

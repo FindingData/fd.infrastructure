@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace fd.infrastructure.core.CacheManager
@@ -10,6 +12,8 @@ namespace fd.infrastructure.core.CacheManager
     public class MemoryCacheService : ICacheService
     {
         protected IMemoryCache _cache;
+
+        private readonly ConcurrentDictionary<string, object> _lockDict = new();
         public MemoryCacheService(IMemoryCache cache)
         {
             _cache = cache;
@@ -72,20 +76,52 @@ namespace fd.infrastructure.core.CacheManager
         }
         public void LPush(string key, string val)
         {
+            var list = GetList(key);
+            lock (_lockDict.GetOrAdd(key, _ => new object()))
+            {
+                list.Insert(0, val); // 插入开头
+            }
+
         }
         public void RPush(string key, string val)
         {
+            var list = GetList(key);
+            lock (_lockDict.GetOrAdd(key, _ => new object()))
+            {
+                list.Add(val); // 插入末尾
+            }
+
         }
         public T ListDequeue<T>(string key) where T : class
         {
+            var obj = ListDequeue(key);
+            if (obj is string str)
+            {
+                return JsonSerializer.Deserialize<T>(str);
+            }
             return null;
         }
         public object ListDequeue(string key)
         {
-            return null;
+            var list = GetList(key);
+            lock (_lockDict.GetOrAdd(key, _ => new object()))
+            {
+                if (list.Count == 0) return null;
+                var item = list[list.Count - 1]; // 从右边取出
+                list.RemoveAt(list.Count - 1);
+                return item;
+            }
         }
         public void ListRemove(string key, int keepIndex)
         {
+            var list = GetList(key);
+            lock (_lockDict.GetOrAdd(key, _ => new object()))
+            {
+                if (keepIndex < list.Count)
+                {
+                    list.RemoveRange(keepIndex, list.Count - keepIndex);
+                }
+            }
         }
         /// <summary>
         /// 添加缓存
@@ -176,6 +212,16 @@ namespace fd.infrastructure.core.CacheManager
                 throw new ArgumentNullException(nameof(key));
             }
             return _cache.Get(key) as T;
+        }
+
+        private List<string> GetList(string key)
+        {
+            if (!_cache.TryGetValue(key, out List<string> list))
+            {
+                list = new List<string>();
+                _cache.Set(key, list);
+            }
+            return list;
         }
 
         public void Dispose()
