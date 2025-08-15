@@ -121,6 +121,21 @@ namespace fd.infrastructure.core.Extensions
             return Regex.IsMatch(str, @"^[+-]?\d*[.]?\d*$");
         }
 
+        public static string CleanGeneratedSql(this string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return string.Empty;
+
+            // 替换 \n, \t 等字符
+            return raw
+                .Replace("\\n", "\n")
+                .Replace("\\t", "\t")
+                .Replace("\\r", "")
+                .Trim().Trim(';');  // 去掉末尾多余分号
+        }
+
+
+
         public static LinqExpressionType GetLinqCondition(this string stringType)
         {
             LinqExpressionType linqExpression;
