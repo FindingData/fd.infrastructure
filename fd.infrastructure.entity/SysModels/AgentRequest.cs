@@ -15,6 +15,8 @@ namespace fd.infrastructure.entity.SysModels
        
         public string? session_id { get; set;}
 
+        public string? session_key { get; set; }
+
         //public JsonNode? data { get; set; }
     }
 }
