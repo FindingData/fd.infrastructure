@@ -50,6 +50,8 @@ namespace fd.infrastructure.entity.SysModels
 
         public string? token { get; set; }
 
+        public long expires_sec { get; set; }
+
         public string? getui_client_id
         {
             get; set;

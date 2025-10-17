@@ -10,7 +10,7 @@ namespace fd.infrastructure.core.Cache
     public interface IUserCacheService
     {
         UserContext? GetUserContext(int userId);
-        void SetUserContext(UserContext context);
+        void SetUserContext(UserContext context, long? expSec);
         UserContext? LoadUserContextFromDb(int userId);
         Task<UserContext?> GetUserContextAsync(int userId);
         Task SetUserContextAsync(UserContext context);

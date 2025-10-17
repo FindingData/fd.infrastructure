@@ -1,4 +1,5 @@
-﻿using fd.infrastructure.entity.SysModels;
+﻿using fd.infrastructure.entity;
+using fd.infrastructure.entity.SysModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,6 @@ namespace fd.infrastructure.core.Auth
 {
     public interface ITokenGenerator
     {
-        string GenerateToken(UserContext user);
+        TokenResult GenerateToken(UserContext user);
     }
 }
