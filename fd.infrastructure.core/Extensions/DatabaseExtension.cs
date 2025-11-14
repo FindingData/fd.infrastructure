@@ -13,6 +13,11 @@ namespace fd.infrastructure.core.Extensions
 {
     public static class DatabaseExtension
     {
+
+      
+
+     
+
         public static IEnumerable<dynamic> DynamicListFromSql(this DbContext db, string Sql, Dictionary<string, object> Params)
         {            
             using (var cmd = db.Database.GetDbConnection().CreateCommand())
@@ -41,6 +46,49 @@ namespace fd.infrastructure.core.Extensions
                     }
                 }
             }
+        }
+
+
+        /// 执行存储过程：无结果集（支持 OUT/INOUT）
+        public static async Task<int> ExecProcAsync(
+            this DbContext db,
+            string procName,
+            IEnumerable<DbParameter> parameters = null,
+            CancellationToken ct = default)
+        {
+            await using var conn = db.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = procName;
+            cmd.CommandType = CommandType.StoredProcedure;
+            if (parameters != null)
+                foreach (var p in parameters) cmd.Parameters.Add(p);
+
+            return await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+
+        /// 执行存储过程：无结果集（支持 OUT/INOUT）
+        public static int ExecProc(
+            this DbContext db,
+            string procName,
+            Dictionary<string, object> parameters = null)
+        {
+            using var conn = db.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open) conn.Open();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = procName;
+            cmd.CommandType = CommandType.StoredProcedure;
+            foreach (KeyValuePair<string, object> p in parameters)
+            {
+                DbParameter dbParameter = cmd.CreateParameter();
+                dbParameter.ParameterName = p.Key;
+                dbParameter.Value = p.Value;
+                cmd.Parameters.Add(dbParameter);
+            }
+            return cmd.ExecuteNonQuery();
         }
 
         public static IEnumerable<dynamic> DynamicListFromSp(this DbContext db, string storedProcedureName, Dictionary<string, object> Params)

@@ -55,7 +55,7 @@ namespace fd.infrastructure.entity.SysModels
         public string? getui_client_id
         {
             get; set;
-        }
+        } 
 
         public string? ip_address { get; set; }
 
