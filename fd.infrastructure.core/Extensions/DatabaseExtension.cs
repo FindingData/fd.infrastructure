@@ -1,22 +1,98 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure; 
+using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Data;
+using System.Data.Common;
 using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure; 
 
 namespace fd.infrastructure.core.Extensions
 {
     public static class DatabaseExtension
     {
+        /// <summary>
+        /// 通用视图查询：传入视图名称、WHERE 子句和匿名对象参数。
+        /// WHERE 子句中用 :ParamName 作为占位符（Oracle 风格）。
+        /// </summary>
+        public static Task<List<dynamic>> QueryViewDynamicAsync(
+         this DbContext db,
+         string viewName,
+         string whereClause = null,
+         IDictionary<string, object> parameters = null)
+        {
+            if (string.IsNullOrWhiteSpace(viewName))
+                throw new ArgumentNullException(nameof(viewName));
 
-      
+            var sql = new StringBuilder();
+            sql.Append("SELECT * FROM ").Append(viewName);
 
-     
+            if (!string.IsNullOrWhiteSpace(whereClause))
+            {
+                sql.Append(" WHERE ").Append(whereClause);
+            }
+
+            return DynamicListFromSqlAsync(db,sql.ToString(), parameters);
+        }
+
+        public static async Task<List<dynamic>> DynamicListFromSqlAsync(
+       this DbContext db,
+       string sql,
+       IDictionary<string, object> parameters = null)
+        {
+            if (db == null) throw new ArgumentNullException(nameof(db));
+            if (string.IsNullOrWhiteSpace(sql)) throw new ArgumentNullException(nameof(sql));
+
+            var result = new List<dynamic>();
+
+            var conn = db.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open)
+            {
+                await conn.OpenAsync();
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = sql;
+                cmd.CommandType = CommandType.Text;
+
+                if (parameters != null)
+                {
+                    foreach (var kv in parameters)
+                    {
+                        var p = cmd.CreateParameter();
+                        // 注意：Oracle 参数名不要带冒号，SQL 里写 :P_NAME，这里写 "P_NAME"
+                        p.ParameterName = kv.Key;
+                        p.Value = kv.Value ?? DBNull.Value;
+                        cmd.Parameters.Add(p);
+                    }
+                }
+
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var row = new ExpandoObject() as IDictionary<string, object>;
+
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            var name = reader.GetName(i); // 视图列名/别名，可中文
+                            var value = await reader.IsDBNullAsync(i)
+                                ? null
+                                : reader.GetValue(i);
+
+                            row[name] = value;
+                        }
+
+                        result.Add(row);
+                    }
+                }
+            }
+
+            return result;
+        }
 
         public static IEnumerable<dynamic> DynamicListFromSql(this DbContext db, string Sql, Dictionary<string, object> Params)
         {            

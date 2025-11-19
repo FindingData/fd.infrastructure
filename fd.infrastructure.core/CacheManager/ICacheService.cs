@@ -84,5 +84,23 @@ namespace fd.infrastructure.core.CacheManager
         /// <param name="key">缓存Key</param>
         /// <returns></returns>
         string Get(string key);
+
+
+        // Caching Operations
+        Task<bool> ExistsAsync(string key);
+        Task<bool> AddAsync(string key, object value, TimeSpan? expiry = null);
+        Task<bool> AddObjectAsync(string key, object value, int expireSeconds = -1);
+        Task<bool> AddAsync(string key, string value, int expireSeconds = -1);
+        Task<bool> RemoveAsync(string key);
+        Task RemoveAllAsync(IEnumerable<string> keys);
+        Task<string> GetAsync(string key);
+        Task<T> GetAsync<T>(string key) where T : class;
+
+        // List/Queue Operations
+        Task LPushAsync(string key, string val);
+        Task RPushAsync(string key, string val);
+        Task<T> ListDequeueAsync<T>(string key) where T : class;
+        Task<object> ListDequeueAsync(string key);
+        Task ListRemoveAsync(string key, int keepIndex);
     }
 }

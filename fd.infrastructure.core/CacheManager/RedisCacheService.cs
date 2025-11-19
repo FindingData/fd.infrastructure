@@ -113,6 +113,108 @@ namespace fd.infrastructure.core.CacheManager
             return val.HasValue ? JsonSerializer.Deserialize<T>(val!) : null;
         }
 
+        // --- Caching Operations ---
+
+        public async Task<bool> ExistsAsync(string key)
+        {
+            return await _db.KeyExistsAsync(key); // 【异步化】
+        }
+
+        public Task<bool> AddAsync(string key, object value, TimeSpan? expiry = null)
+        {
+            // 内部调用 AddObjectAsync，使用 default expireSeconds = -1
+            return AddObjectAsync(key, value, expiry.HasValue ? (int)expiry.Value.TotalSeconds : -1);
+        }
+
+        public async Task<bool> AddObjectAsync(string key, object value, int expireSeconds = -1)
+        {
+            var expiry = expireSeconds > 0 ? TimeSpan.FromSeconds(expireSeconds) : (TimeSpan?)null;
+            // JsonSerializer.Serialize 是 CPU 密集型，保持同步
+            var json = JsonSerializer.Serialize(value);
+
+            // 【异步化】
+            return await _db.StringSetAsync(key, json, expiry);
+        }
+
+        public async Task<bool> AddAsync(string key, string value, int expireSeconds = -1)
+        {
+            var expiry = expireSeconds > 0 ? TimeSpan.FromSeconds(expireSeconds) : (TimeSpan?)null;
+            // 【异步化】
+            return await _db.StringSetAsync(key, value, expiry);
+        }
+
+        public async Task<bool> RemoveAsync(string key)
+        {
+            // 【异步化】
+            return await _db.KeyDeleteAsync(key);
+        }
+
+        public async Task RemoveAllAsync(IEnumerable<string> keys)
+        {
+            // StackExchange.Redis 提供了 KeyDelete 批量删除的异步版本
+            // 也可以使用 _db.KeyDeleteAsync(keys.Select(k => (RedisKey)k).ToArray());
+            var tasks = keys.Select(key => _db.KeyDeleteAsync(key));
+            await Task.WhenAll(tasks);
+        }
+
+        public async Task<string> GetAsync(string key)
+        {
+            // 【异步化】
+            return await _db.StringGetAsync(key);
+        }
+
+        public async Task<T> GetAsync<T>(string key) where T : class
+        {
+            // 【异步化】
+            var val = await _db.StringGetAsync(key);
+            // 反序列化是 CPU 密集型，保持同步
+            return val.HasValue ? JsonSerializer.Deserialize<T>(val!) : null;
+        }
+
+        // --- List/Queue Operations ---
+
+        public async Task LPushAsync(string key, string val)
+        {
+            // 【异步化】
+            await _db.ListLeftPushAsync(key, val);
+        }
+
+        public async Task RPushAsync(string key, string val)
+        {
+            // 【异步化】这是您最需要的更改
+            await _db.ListRightPushAsync(key, val);
+        }
+
+        public async Task<T> ListDequeueAsync<T>(string key) where T : class
+        {
+            // 【异步化】
+            var val = await _db.ListRightPopAsync(key);
+            // 反序列化保持同步
+            return val.HasValue ? JsonSerializer.Deserialize<T>(val!) : null;
+        }
+
+        public async Task<object> ListDequeueAsync(string key)
+        {
+            // 【异步化】
+            var val = await _db.ListRightPopAsync(key);
+            return val.HasValue ? val.ToString() : null;
+        }
+
+        public async Task ListRemoveAsync(string key, int keepIndex)
+        {
+            // ListLengthAsync 是 I/O 操作
+            var len = await _db.ListLengthAsync(key);
+
+            if (len > keepIndex)
+            {
+                // 注意：ListRightPopAsync 应该被多次调用，最好的做法是使用 batch 或 pipeline 
+                // 但为了简洁和直接替换，我们使用循环（虽然效率不高，但能工作）
+                // 更好的性能：使用 ListTrimAsync 来保持列表长度
+                await _db.ListTrimAsync(key, 0, keepIndex - 1);
+            }
+        }
+
+
         public void Dispose()
         {
             if (_redis != null && _redis.IsConnected)
