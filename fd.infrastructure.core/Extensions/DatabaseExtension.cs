@@ -13,6 +13,17 @@ namespace fd.infrastructure.core.Extensions
 {
     public static class DatabaseExtension
     {
+        public static async Task<dynamic?> QueryViewSingleDynamicAsync(
+    this DbContext db,
+    string viewName,
+    string whereClause = null,
+    IDictionary<string, object> parameters = null)
+        {
+            var list = await db.QueryViewDynamicAsync(viewName, whereClause, parameters);
+            return list != null && list.Count > 0 ? list[0] : null;
+        }
+
+
         /// <summary>
         /// 通用视图查询：传入视图名称、WHERE 子句和匿名对象参数。
         /// WHERE 子句中用 :ParamName 作为占位符（Oracle 风格）。

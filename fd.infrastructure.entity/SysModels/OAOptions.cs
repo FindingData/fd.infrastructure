@@ -9,6 +9,9 @@ namespace fd.infrastructure.entity.SysModels
     public class OAOptions
     {
         public int customer_id { get; set; }
+        public int login_id { get; set; }
+        public string login_name { get; set; } = "";
+        public string login_pwd { get; set; } = "";
 
         public List<int> executor_ids { get; set; }
         
